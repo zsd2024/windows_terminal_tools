@@ -6,6 +6,7 @@ namespace things
     {
         enum color_codes
         {
+            unknown = -1,
             black = 0,
             blue = 1,
             green = 2,
@@ -22,6 +23,16 @@ namespace things
             bright_magenta = 13,
             bright_yellow = 14,
             bright_white = 15
+        };
+        struct console_color
+        {
+            color_codes froncolor = unknown;
+            color_codes backcolor = unknown;
+            console_color(color_codes f = unknown, color_codes b = unknown)
+            {
+                froncolor = f;
+                backcolor = b;
+            }
         };
         /// @brief 设置光标位置
         /// @param x 第几列
@@ -84,13 +95,50 @@ namespace things
             DWORD count;                                                                           // 定义计数器
             return WriteConsoleA(GetStdHandle(STD_OUTPUT_HANDLE), str, strlen(str), &count, NULL); // 输出到控制台
         }
+        /// @brief 获取颜色
+        /// @param froncolor 存储前景色的变量
+        /// @param backcolor 存储背景色的变量
+        /// @return 是否获取成功
+        WINBOOL get_color(color_codes &froncolor, color_codes &backcolor)
+        {
+            CONSOLE_SCREEN_BUFFER_INFO info;                                         // 定义结构体
+            if (!GetConsoleScreenBufferInfo(GetStdHandle(STD_OUTPUT_HANDLE), &info)) // 获取屏幕信息，失败则返回
+                return false;                                                        // 失败则返回
+            froncolor = (color_codes)(info.wAttributes & 0x000F);                    // 获取前景色
+            backcolor = (color_codes)((info.wAttributes & 0x00F0) >> 4);             // 获取背景色
+            return true;                                                             // 成功则返回
+        }
+        /// @brief 获取颜色
+        /// @param color 存储颜色的变量
+        /// @return 是否获取成功
+        WINBOOL get_color(console_color &color)
+        {
+            color_codes froncolor, backcolor;
+            if (!get_color(froncolor, backcolor))
+                return false;
+            color.froncolor = froncolor;
+            color.backcolor = backcolor;
+            return true;
+        }
         /// @brief 设置颜色
         /// @param froncolor 前景色
         /// @param backcolor 背景色
         /// @return 是否设置成功
-        WINBOOL set_color(color_codes froncolor = white, color_codes backcolor = black)
+        WINBOOL set_color(color_codes froncolor = unknown, color_codes backcolor = unknown)
         {
+            if (froncolor == unknown || backcolor == unknown)
+            {
+                console_color color;
+                set_color(froncolor == unknown ? color.froncolor : froncolor, backcolor == unknown ? color.backcolor : backcolor);
+            }
             return SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), (WORD)((int)backcolor << 4 | (int)froncolor)); // 设置颜色
+        }
+        /// @brief 设置颜色
+        /// @param color 颜色
+        /// @return 是否设置成功
+        WINBOOL set_color(console_color color)
+        {
+            return set_color(color.froncolor, color.backcolor);
         }
         /// @brief 隐藏光标
         /// @return 是否隐藏成功
